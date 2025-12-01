@@ -32,24 +32,28 @@ use('bdBateaux');
 
 
 // ---------------------
+// ---------------------
+// ---------------------
 // A vous de jouer (5)
 // ------------------------
-// 1
+// 1Calculer le salaire moyen des skippers
 
 // db.skippers.aggregate([
-//     { $match: { salaire: { $exists: true,
-//     $ne: "aucun" } } },
+//     { $match: { 
+//         salaire: { $exists: true,
+//         $ne: "aucun" }
+//     } },
 //     { $group: {
-//     _id: null,
-//     MoyenneSalaires: { $avg: "$salaire" }
+//         _id: null,
+//         MoyenneSalaires: { $avg: "$salaire" }
 //     }},
 //     { $project: {
-//     _id: 0,
-//     MoyenneSalaires: 1
+//         _id: 0,
+//         MoyenneSalaires: 1
 //     }}
 // ])
 
-// 2
+// 2 Compter le nombre de skippers par port
 
 // db.skippers.aggregate([
 //     { $match: { 
@@ -60,7 +64,7 @@ use('bdBateaux');
 //     }},
 //     { $group: {
 //         _id: "$skport",
-//         NombreSkippers: { $sum: 1 },
+//         NombreSkippers: { $sum: 1 }, // "$count: ()" marche aussi.
 //     }},
 //     { $project: {
 //         _id: 0,
@@ -69,7 +73,7 @@ use('bdBateaux');
 //     }}
 // ])
 
-// 3
+// 3 Trouver le skipper avec le salaire le plus élevé et le plus bas dans chaque port
 
 // db.skippers.aggregate([
 //   {
@@ -103,18 +107,24 @@ use('bdBateaux');
 //       _id: 0,
 //       Port: "$_id",
       
-//       // Skipper MAX
 //       Skipper_Max: "$max_skipper_info.sknom",
 //       Salaire_Max: "$max_skipper_info.salaire",
       
-//       // Skipper MIN
 //       Skipper_Min: "$min_skipper_info.sknom",
 //       Salaire_Min: "$min_skipper_info.salaire",
 //     }
 //   }
 // ])
 
-// 4
+// 4.0 (Creation de la collection croisieres et insertion des documents)
+
+// db.getCollection('skippers').insertMany([
+//   { 'sknum': 1, 'sknom': "JEAN", 'skport': "AJACCIO", 'salaire': 3000 },
+//   { 'sknum': 2, 'sknom': "PAUL", 'skport': "AJACCIO", 'salaire': 2000 },
+//   { 'sknum': 3, 'sknom': "PIERRE", 'skport': "ANTIBES", 'salaire': 1200 },
+//   { 'sknum': 4, 'sknom': "MARIE", 'skport': "BASTIA", 'salaire': 1500 },
+//   { 'sknum': 5, 'sknom': "BAPTISTE", 'skport': "AJACCIO", 'salaire': 2010 },
+// ]);
 
 // db.getCollection('croisieres').insertMany([
 //   { "CROISNUM": "C001", "SKNUM": 1, "BATNUM": "B002", "DEPPORT": "BASTIA", "ARRPORT": "CALVI", "DEPDATE": ISODate("2024-07-10"), "ARRDATE": ISODate("2024-07-11") },
@@ -125,32 +135,7 @@ use('bdBateaux');
 //   { "CROISNUM": "C006", "SKNUM": 4, "BATNUM": "B001", "DEPPORT": "PORTO-VECCHIO", "ARRPORT": "AJACCIO", "DEPDATE": ISODate("2024-11-05"), "ARRDATE": ISODate("2024-11-06") }
 // ]);
 
-// 4 
-// db.skippers.aggregate([
-//   {
-//     $lookup: {
-//       from: "croisieres",
-//       localField: "sknum",
-//       foreignField: "SKNUM",
-//       as: "la_liste_croisieres"
-//     }
-//   },
-//   {
-//     $project: {
-//       _id: 0,
-//       sknom: "$sknom",
-//       nombreCroisieresBastia: {
-//         $size: {
-//           $filter: { 
-//             input: "$la_liste_croisieres",
-//             as: "croisiere",
-//             cond: { $eq: ["$$croisiere.DEPPORT", "BASTIA"] }
-//           }
-//         }
-//       }
-//     }
-//   }
-// ])
+// 4 Donner pour chaque skipper, son nom et le nombre de croisieres au départ de Bastia qu'il effectue
 
 // Version avec unwind et group
 
@@ -186,15 +171,17 @@ use('bdBateaux');
 //   }
 // ])
 
-// 5
+// 5 Donner la liste des ports d’arrivée pour chaque nom de skipper
+
 
 // essai avec addToSet
+
 // db.skippers.aggregate([
 //     {
 //         $lookup: {
 //           from: "croisieres",
-//           localField: "sknum",
-//           foreignField: "SKNUM",
+//           localField: "sknum", // sknum de skippers
+//           foreignField: "SKNUM", // sknum de croisieres
 //           as: "croisieres_du_skipper"
 //         },
 //     },
@@ -233,7 +220,9 @@ use('bdBateaux');
 //     }
 // ])
 
-// 6
+// (conclusion : addToSet evite les doublons)
+
+// 6 Calculer le total des jours en mer pour chaque skipper
 
 // db.skippers.aggregate([
 //   {
@@ -263,4 +252,146 @@ use('bdBateaux');
 //   }
 // ])
 
-// 6
+
+// ---------------------
+// ---------------------
+// ---------------------
+// A vous de jouer (6) : MAP REDUCE
+// ------------------------
+
+// // Test exemple 1 ;
+
+// function map() {
+//     // On vérifie que le champ ‘salaire' existe
+//     if (this.salaire){
+//         emit("totalSalaire", this.salaire);
+//     }
+// }
+// // resultat intermediaire (exemple) :
+// // { "totalSalaire" : 3000 }
+// // { "totalSalaire" : 2000 }
+// // { "totalSalaire" : 1200 }
+// // { "totalSalaire" : 1500 }
+// // { "totalSalaire" : 2010 }
+
+// // qui devient
+// // "totalSalaire" : [3000, 2000, 1200, 1500, 2010]
+
+// function reduce(cle, valeurs) {
+//     return Array.sum(valeurs);
+// // Additionne toutes les valeurs pour obtenir lesalaire total.
+// }
+
+
+// db.skippers.mapReduce(
+//     map,
+//     reduce,
+//     {
+//         out: { inline: 1 }, // Les résultats sont retournés directement. On aurait pu les stocker dans une collection aussi.
+//         query: { salaire: { $exists: true } } // Filtre pour ne traiter que les documents avec un champ 'salaire'. Optionnel pour optimiser.
+//     }
+// );
+
+// Test exemple 2 Salaire total par port de résidence
+
+// function map2() {
+//   if (this.salaire) {
+//     emit(this.skport, this.salaire);
+//   }
+// }
+
+// function reduce(cle, valeurs) {
+//     return Array.sum(valeurs);
+// // Additionne toutes les valeurs pour obtenir lesalaire total.
+// }
+
+// db.skippers.mapReduce(
+//   map2,
+//   reduce,
+//   {
+//     out: "ColSalaires",
+//     query: { salaire: { $exists: true }, skport: { $exists: true } } // Filtrage initial optionnel pour optimiser.
+//   }
+// );
+
+// db.ColSalaires.find()
+
+// 1. Calculer le salaire moyen des skippers
+
+// function map(){
+//     if(this.salaire){
+//         emit("SalaireMoyen", this.salaire)
+//     }
+// }
+
+// function reduce(key, value){
+//     return Array.sum(value) / value.length
+// }
+
+// db.skippers.mapReduce(
+//     map,
+//     reduce,
+//     {
+//         out: {inline: 1},
+//         query: {
+//             salaire: {$exists: true}
+//         }
+//     }
+// )
+
+// 2. Compter le nombre de skippers par port
+
+// function map(){
+//     if(this.salaire){
+//         emit(this.skport, 1)
+//     }
+// }
+
+// function reduce(key, value){
+//     return Array.sum(value)
+// }
+
+// db.skippers.mapReduce(
+//     map,
+//     reduce,
+//     {
+//         out: {inline: 1},
+//         query: {
+//             skport: {$exists: true}
+//         }
+//     }
+// )
+
+// 3. Trouver le skipper avec le salaire le plus élevé et le plus bas dans chaque port
+
+// function map(){
+//     if(this.salaire){
+//         emit(this.skport, {sknom: this.sknom, salaire: this.salaire})
+//     }
+// }
+
+// function reduce(key, values){
+//     let maxSkipper = values[0];
+//     let minSkipper = values[0];
+//     for(let i = 1; i < values.length; i++){
+//         if(values[i].salaire > maxSkipper.salaire){
+//             maxSkipper = values[i];
+//         }
+//         if(values[i].salaire
+//          < minSkipper.salaire){
+//             minSkipper = values[i];
+//         }
+//     }
+//     return {maxSkipper: maxSkipper, minSkipper: minSkipper};
+// }
+
+// db.skippers.mapReduce(
+//     map,
+//     reduce,
+//     {
+//         out: {inline: 1},
+//         query: {
+//             salaire: {$exists: true}
+//         }
+//     }
+// )
